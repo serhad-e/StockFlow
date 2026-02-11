@@ -24,4 +24,24 @@ public class CategoriesController : ControllerBase
         var id = await _categoryService.CreateCategoryAsync(dto);
         return Ok(new { id, message = "Kategori başarıyla oluşturuldu." });
     }
+
+    // YENİ: Kategori Güncelleme (Title Case kuralı serviste işlenecek)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, CreateCategoryDto dto)
+    {
+        var result = await _categoryService.UpdateCategoryAsync(id, dto);
+        if (!result) return NotFound(new { message = "Kategori bulunamadı." });
+        
+        return Ok(new { message = "Kategori başarıyla güncellendi." });
+    }
+
+    // YENİ: Kategori Silme (Soft Delete)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await _categoryService.DeleteCategoryAsync(id);
+        if (!result) return NotFound(new { message = "Kategori bulunamadı." });
+        
+        return Ok(new { message = "Kategori başarıyla silindi." });
+    }
 }

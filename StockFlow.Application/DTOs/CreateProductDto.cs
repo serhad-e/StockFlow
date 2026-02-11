@@ -1,9 +1,9 @@
 ﻿namespace StockFlow.Application.DTOs;
-
 public class CreateProductDto
 {
     public string Name { get; set; } = string.Empty;
     public string? Barcode { get; set; } // Boş bırakılabilir (Opsiyonel)
+    public string? Description { get; set; }
     public decimal PurchasePrice { get; set; }
     public decimal? ProfitRate { get; set; }
     public decimal? SalePrice { get; set; }
@@ -12,4 +12,5 @@ public class CreateProductDto
     
     public int CategoryId { get; set; }
     public string? CategoryName { get; set; } // Kullanıcı ID yerine ismi görsün diye
+
 }

@@ -3,6 +3,7 @@ using StockFlow.Application.DTOs;
 using StockFlow.Application.Interfaces;
 using StockFlow.Domain.Entities; // Entities yazımını düzelttiğini varsayıyorum
 using StockFlow.Infrastructure.Persistence;
+using System.Globalization; // Kültür desteği için şart
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,50 +14,96 @@ public class ProductService : IProductService
 {
     private readonly AppDbContext _context;
 
-    public async Task<bool> UpdateProductAsync(int id, UpdateProductDto dto)
+    public async Task<List<ProductListDto>> GetAllProductsAsync(string? search = null, int? categoryId = null)
     {
-        var product = await _context.Products.FindAsync(id);
-        if (product == null) return false;
+        var query = _context.Products
+            .Include(p => p.Category)
+            .Where(p => !p.IsDeleted)
+            .AsQueryable();
 
-        // Loglama hazırlığı: Değişmeden önceki hallerini saklayalım
-        var oldValues = new Dictionary<string, string>
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            { "Name", product.Name },
-            { "SalePrice", product.SalePrice.ToString() },
-            { "PurchasePrice", product.PurchasePrice.ToString() }
-        };
-
-        // Güncelleme işlemi
-        product.Name = dto.Name;
-        product.PurchasePrice = dto.PurchasePrice;
-        product.UpdatedDate = DateTime.UtcNow; // BaseEntity'den gelen alan
-
-        // Fiyat hesaplama mantığı (senin istediğin esnek yapı)
-        if (dto.ProfitRate.HasValue && dto.ProfitRate.Value > 0)
-        {
-            product.ProfitRate = dto.ProfitRate.Value;
-            product.SalePrice = product.PurchasePrice * (1 + (product.ProfitRate / 100));
+            var s = search.ToLower();
+            query = query.Where(p => 
+                p.Name.ToLower().Contains(s) || 
+                (p.Barcode != null && p.Barcode.ToLower().Contains(s)) || 
+                (p.Description != null && p.Description.ToLower().Contains(s))
+            );
         }
-        else if (dto.SalePrice.HasValue)
+
+        if (categoryId.HasValue)
         {
-            product.SalePrice = dto.SalePrice.Value;
-            if (product.PurchasePrice > 0)
+            query = query.Where(p => p.CategoryId == categoryId.Value);
+        }
+
+        return await query
+            .OrderByDescending(p => p.CreatedDate)
+            .Select(p => new ProductListDto 
             {
-                product.ProfitRate = ((product.SalePrice - product.PurchasePrice) / product.PurchasePrice) * 100;
-            }
-        }
+                Id = p.Id,
+                Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(p.Name.ToLower()),
+                Barcode = p.Barcode,
+                Description = p.Description,
+                SalePrice = p.SalePrice,
+                StockQuantity = p.StockQuantity,
+                CategoryName = p.Category != null ? p.Category.Name : "Kategorisiz",
+                CreatedDate = p.CreatedDate
+            })
+            .ToListAsync();
+    }
+public async Task<bool> UpdateProductAsync(int id, UpdateProductDto dto)
+{
+    var product = await _context.Products.FindAsync(id);
+    if (product == null || product.IsDeleted) return false;
 
-        // LOGLAMA: Nelerin değiştiğini kontrol edip log tablosuna yazalım
-        if (oldValues["Name"] != product.Name)
-            await AddAuditLog(product.Id, "Name", oldValues["Name"], product.Name);
-    
-        if (oldValues["SalePrice"] != product.SalePrice.ToString())
-            await AddAuditLog(product.Id, "SalePrice", oldValues["SalePrice"], product.SalePrice.ToString());
+    // 1. Loglama için eski değerleri tut (Karşılaştırma için önemli)
+    var oldValues = new Dictionary<string, string>
+    {
+        { "Name", product.Name },
+        { "Description", product.Description ?? "" },
+        { "SalePrice", product.SalePrice.ToString() }
+    };
 
-        await _context.SaveChangesAsync();
-        return true;
+    // 2. STANDARTLAŞTIRMA (Title Case Uygulaması)
+    // Önce ToLower ile tüm harfleri küçültüyoruz, sonra ToTitleCase ile her kelimenin ilk harfini büyütüyoruz.
+    product.Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(dto.Name.ToLower());
+
+    if (!string.IsNullOrEmpty(dto.Description))
+    {
+        product.Description = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(dto.Description.ToLower());
     }
 
+    // 3. Fiyat ve Diğer Güncellemeler
+    product.PurchasePrice = dto.PurchasePrice;
+    product.UpdatedDate = DateTime.UtcNow;
+
+    if (dto.ProfitRate.HasValue && dto.ProfitRate.Value > 0)
+    {
+        product.ProfitRate = dto.ProfitRate.Value;
+        product.SalePrice = product.PurchasePrice * (1 + (product.ProfitRate / 100));
+    }
+    else if (dto.SalePrice.HasValue)
+    {
+        product.SalePrice = dto.SalePrice.Value;
+        if (product.PurchasePrice > 0)
+        {
+            product.ProfitRate = ((product.SalePrice - product.PurchasePrice) / product.PurchasePrice) * 100;
+        }
+    }
+
+    // 4. LOGLAMA: Formatlanmış yeni isim ile eski ismi karşılaştırıyoruz
+    if (oldValues["Name"] != product.Name)
+        await AddAuditLog(product.Id, "Name", oldValues["Name"], product.Name);
+
+    if (oldValues["Description"] != product.Description)
+        await AddAuditLog(product.Id, "Description", oldValues["Description"], product.Description??"");
+
+    if (oldValues["SalePrice"] != product.SalePrice.ToString())
+        await AddAuditLog(product.Id, "SalePrice", oldValues["SalePrice"], product.SalePrice.ToString());
+
+    await _context.SaveChangesAsync();
+    return true;
+}
     public async Task<List<ProductAuditLogDto>> GetProductHistoryAsync(int productId)
     {
         return await _context.ProductAuditLogs
@@ -98,7 +145,8 @@ public class ProductService : IProductService
     {
         _context = context;
     }
-
+    
+    
     public async Task<int> CreateProductAsync(CreateProductDto dto)
     {
         // 1. Barkod Otomasyonu
@@ -120,11 +168,15 @@ public class ProductService : IProductService
             finalSalePrice = dto.SalePrice.Value;
             finalProfitRate = dto.PurchasePrice > 0 ? ((finalSalePrice - dto.PurchasePrice) / dto.PurchasePrice) * 100 : 0;
         }
-
+       
+        
         var product = new Product
         {
-            Name = dto.Name,
+            Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(dto.Name.ToLower()),
             Barcode = finalBarcode, // Otomatik veya el ile gelen barkod
+            Description = !string.IsNullOrEmpty(dto.Description) 
+                ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(dto.Description.ToLower()) 
+                : dto.Description,
             PurchasePrice = dto.PurchasePrice,
             SalePrice = finalSalePrice,
             ProfitRate = finalProfitRate,
@@ -139,27 +191,32 @@ public class ProductService : IProductService
         return product.Id;
     }
 
-    public async Task<List<ProductDto>> GetAllProductsAsync()
-    {
-        return await _context.Products
-            .Select(p => new ProductDto
-            {
-                Id = p.Id,
-                Name = p.Name,
-                Barcode = p.Barcode,
-                SalePrice = p.SalePrice,
-                StockQuantity = p.StockQuantity
-            }).ToListAsync();
-    }
+    
+    
     public async Task<List<ProductDto>> GetLowStockProductsAsync()
     {
-        return await _context.Products
-            .Where(p => !p.IsDeleted && p.StockQuantity <= p.CriticalStockLevel)
-            .Select(p => new ProductDto {
-                Id = p.Id,
-                Name = p.Name,
-                StockQuantity = p.StockQuantity,
-                Barcode = p.Barcode
-            }).ToListAsync();
+        var products = await _context.Products
+            .Where(p => !p.IsDeleted && p.StockQuantity <= p.CriticalStockLevel) // ?? 5 kısmını sildik
+            .ToListAsync();
+
+        return products.Select(p => new ProductDto 
+        {
+            Id = p.Id,
+            Name = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(p.Name.ToLower()), 
+            StockQuantity = p.StockQuantity,
+            Barcode = p.Barcode ?? "", // Null ise boş string gönder
+            SalePrice = p.SalePrice
+        }).ToList(); 
+    }
+    public async Task<bool> DeleteProductAsync(int id)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null) return false;
+
+        product.IsDeleted = true; // Ürün hala veritabanında ama listede görünmeyecek
+        product.UpdatedDate = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return true;
     }
 }

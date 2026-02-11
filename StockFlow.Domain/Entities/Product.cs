@@ -18,5 +18,4 @@ public class Product:BaseEntity
     // İlişki (İleride kategorilere ayırmak istersen esnek bıraktık)
     public int CategoryId { get; set; } // Foreign Key
     public Category? Category { get; set; } // Navigation Property
-    public string? ImageUrl { get; set; } // Ürün fotoğrafının yolu
 }
