@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using StockFlow.Application.Interfaces.Repositories;
+using StockFlow.Application.Interfaces.IRepositories;
 using StockFlow.Infrastructure.Persistence;
 using System.Linq.Expressions;
 

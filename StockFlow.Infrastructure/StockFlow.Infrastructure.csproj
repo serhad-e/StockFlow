@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\StockFlow.Application\StockFlow.Application.csproj" />
       <ProjectReference Include="..\StockFlow.Domain\StockFlow.Domain.csproj" />
     </ItemGroup>
 

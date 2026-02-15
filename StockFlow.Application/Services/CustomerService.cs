@@ -1,17 +1,16 @@
-﻿namespace StockFlow.Application.Services;
-using Microsoft.EntityFrameworkCore;
-using StockFlow.Application.DTOs;
+﻿using StockFlow.Application.DTOs;
 using StockFlow.Application.Interfaces;
 using StockFlow.Domain.Entities;
-using StockFlow.Infrastructure.Persistence;
 
-public class CustomerService:ICustomerService
+namespace StockFlow.Application.Services;
+
+public class CustomerService : ICustomerService
 {
-    private readonly AppDbContext _context;
+    private readonly IUnitOfWork _uow;
 
-    public CustomerService(AppDbContext context)
+    public CustomerService(IUnitOfWork uow)
     {
-        _context = context;
+        _uow = uow;
     }
 
     public async Task<int> CreateCustomerAsync(CreateCustomerDto dto)
@@ -23,34 +22,30 @@ public class CustomerService:ICustomerService
             Email = dto.Email,
             Phone = dto.Phone,
             Address = dto.Address,
-            Balance = 0 // Yeni müşteri sıfır bakiye ile başlar
+            Balance = 0 
         };
 
-        _context.Customers.Add(customer);
-        await _context.SaveChangesAsync();
-        
+        await _uow.Customers.AddAsync(customer);
+        await _uow.SaveChangesAsync();
         return customer.Id;
     }
 
     public async Task<List<CustomerDto>> GetAllCustomersAsync()
     {
-        return await _context.Customers
-            .Where(x => !x.IsDeleted) // Sadece silinmemişleri getir
-            .Select(x => new CustomerDto
-            {
-                Id = x.Id,
-                Name = x.Name,
-                CompanyName = x.CompanyName,
-                Phone = x.Phone,
-                Balance = x.Balance
-            }).ToListAsync();
+        var customers = await _uow.Customers.GetAllAsync(x => !x.IsDeleted);
+        return customers.Select(x => new CustomerDto
+        {
+            Id = x.Id,
+            Name = x.Name,
+            CompanyName = x.CompanyName,
+            Phone = x.Phone,
+            Balance = x.Balance
+        }).ToList();
     }
 
-    public Task<decimal> GetCustomerBalanceAsync(int customerId)
+    public async Task<decimal> GetCustomerBalanceAsync(int customerId)
     {
-        return _context.Customers
-            .Where(x => x.Id == customerId)
-            .Select(x => x.Balance)
-            .FirstOrDefaultAsync();
+        var customer = await _uow.Customers.GetByIdAsync(customerId);
+        return customer?.Balance ?? 0;
     }
 }
