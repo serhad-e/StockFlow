@@ -11,4 +11,8 @@ public interface IUnitOfWork : IDisposable
     IGenericRepository<ProductAuditLog> AuditLogs { get; }
     IGenericRepository<StockMovement> StockMovements { get; }
     Task<int> SaveChangesAsync();
+    IGenericRepository<CustomerMovement> CustomerMovements { get; }
+    IGenericRepository<Order> Orders { get; }
+    IGenericRepository<OrderItem> OrderItems { get; }
+    
 }

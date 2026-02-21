@@ -104,16 +104,17 @@ public class ProductService : IProductService
         product.PurchasePrice = dto.PurchasePrice;
         product.UpdatedDate = DateTime.UtcNow;
 
-        if (dto.ProfitRate.HasValue && dto.ProfitRate.Value > 0)
+        if (dto.ProfitRate.HasValue)
         {
+            // Artık değerin 0'dan büyük olduğunu Validator bildiği için direkt hesaplıyoruz
             product.ProfitRate = dto.ProfitRate.Value;
             product.SalePrice = product.PurchasePrice * (1 + (product.ProfitRate / 100));
         }
         else if (dto.SalePrice.HasValue)
         {
+            // Artık satış fiyatının dolu olduğunu ve alış fiyatının 0'dan büyük olduğunu biliyoruz
             product.SalePrice = dto.SalePrice.Value;
-            if (product.PurchasePrice > 0)
-                product.ProfitRate = ((product.SalePrice - product.PurchasePrice) / product.PurchasePrice) * 100;
+            product.ProfitRate = ((product.SalePrice - product.PurchasePrice) / product.PurchasePrice) * 100;
         }
 
         if (oldValues["Name"] != product.Name)

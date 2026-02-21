@@ -1,7 +1,12 @@
 ﻿namespace StockFlow.Domain.Entities;
 using StockFlow.Domain.Common;
 
-public enum MovementType { In = 1, Out = 2 } // Giriş ve Çıkış ayrımı
+public enum MovementType 
+{ 
+    In = 1,      // Alış
+    Out = 2,     // Satış
+    Return = 3   // İADE (Depoya ürün girişi)
+}
 
 public class StockMovement : BaseEntity
 {

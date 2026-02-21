@@ -16,6 +16,9 @@ public class UnitOfWork : IUnitOfWork
         Customers = new GenericRepository<Customer>(_context);
         AuditLogs = new GenericRepository<ProductAuditLog>(_context);
         StockMovements = new GenericRepository<StockMovement>(_context);
+        CustomerMovements = new GenericRepository<CustomerMovement>(_context);
+        Orders = new GenericRepository<Order>(_context);
+        OrderItems = new GenericRepository<OrderItem>(_context);
     }
 
     public IGenericRepository<Product> Products { get; }
@@ -26,4 +29,7 @@ public class UnitOfWork : IUnitOfWork
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
     public void Dispose() => _context.Dispose();
+    public IGenericRepository<CustomerMovement> CustomerMovements { get; private set; }
+    public IGenericRepository<Order> Orders { get; private set; }
+    public IGenericRepository<OrderItem> OrderItems { get; private set; }
 }

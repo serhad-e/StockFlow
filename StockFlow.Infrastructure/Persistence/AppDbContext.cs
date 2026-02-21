@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<FinanceTransaction> FinanceTransactions { get; set; }
     public DbSet<ProductAuditLog> ProductAuditLogs { get; set; }
     public DbSet<Category> Categories { get; set; }
+    public DbSet<CustomerMovement> CustomerMovements { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -38,5 +39,10 @@ public class AppDbContext : DbContext
             .HasOne(oi => oi.Order)
             .WithMany(o => o.OrderItems)
             .HasForeignKey(oi => oi.OrderId);
+        
+        modelBuilder.Entity<CustomerMovement>()
+            .HasOne(cm => cm.Customer)
+            .WithMany() // Müşterinin birçok hareketi olabilir
+            .HasForeignKey(cm => cm.CustomerId);
     }
 }

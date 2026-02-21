@@ -10,4 +10,8 @@ public interface ICustomerService
     
     // Tek bir müşterinin borç/alacak bilgisini getirir
     Task<decimal> GetCustomerBalanceAsync(int customerId);
+
+    Task<bool> AnyEmailAsync(string email);
+    Task<bool> AnyPhoneAsync(string phone);
+    
 }

@@ -2,7 +2,8 @@
 using StockFlow.Application.Interfaces.IRepositories;
 using StockFlow.Infrastructure.Persistence;
 using System.Linq.Expressions;
-
+using StockFlow.Domain.Entities;
+using StockFlow.Domain.Common;
 namespace StockFlow.Infrastructure.Persistence.Repositories;
 
 public class GenericRepository<T> : IGenericRepository<T> where T : class
@@ -32,4 +33,26 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public async Task AddAsync(T entity) => await _dbSet.AddAsync(entity);
     public void Update(T entity) => _dbSet.Update(entity);
     public void Delete(T entity) => _dbSet.Remove(entity);
+    public async Task<T?> GetByIdWithItemsAsync(int id)
+    {
+        // 1. Tipi Order olarak kontrol et ve Include işlemlerini yap
+        if (typeof(T) == typeof(Order))
+        {
+            var result = await _context.Set<Order>()
+                .Include(x => x.OrderItems)
+                .ThenInclude(x => x.Product)
+                .FirstOrDefaultAsync(x => x.Id == id);
+            
+            return result as T;
+        }
+
+        // 2. Order değilse standart davranışa dön
+        // Burada 'id' üzerinden arama yapmak için Set<T>().FindAsync kullanmak en güvenlisidir
+        return await _context.Set<T>().FindAsync(id);
+    }
+    public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate)
+    {
+        // Veritabanı setine gidip verilen kurala uyan kayıt var mı bakar
+        return await _dbSet.AnyAsync(predicate);
+    }
 }

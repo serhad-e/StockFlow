@@ -15,4 +15,8 @@ public class OrderItem:BaseEntity
     
     // Hesaplanan Alan
     public decimal TotalPrice => Quantity * UnitPrice;
+    
+    public int ReturnedQuantity { get; set; } = 0;
+    
+    public int ActiveQuantity => Quantity - ReturnedQuantity;
 }

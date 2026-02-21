@@ -6,7 +6,7 @@ namespace StockFlow.Application.Services;
 
 public class CustomerService : ICustomerService
 {
-    private readonly IUnitOfWork _uow;
+    private readonly IUnitOfWork _uow; // Değişken ismin _uow olarak tanımlı
 
     public CustomerService(IUnitOfWork uow)
     {
@@ -47,5 +47,18 @@ public class CustomerService : ICustomerService
     {
         var customer = await _uow.Customers.GetByIdAsync(customerId);
         return customer?.Balance ?? 0;
+    }
+
+    // Hatalı kısımları _uow olarak düzelttik:
+    public async Task<bool> AnyEmailAsync(string email)
+    {
+        // _unitOfWork yerine _uow kullanıldı
+        return await _uow.Customers.AnyAsync(x => x.Email == email && !x.IsDeleted);
+    }
+
+    public async Task<bool> AnyPhoneAsync(string phone)
+    {
+        // _unitOfWork yerine _uow kullanıldı
+        return await _uow.Customers.AnyAsync(x => x.Phone == phone && !x.IsDeleted);
     }
 }
